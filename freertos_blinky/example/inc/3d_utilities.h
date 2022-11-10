@@ -1,0 +1,46 @@
+/*
+ *  3d_utilities.h
+ *
+ *  Created on: May 6, 2019
+ *  Author: Kailash Chakravarty
+ */
+
+#ifndef INC_3D_UTILITIES_H_
+#define INC_3D_UTILITIES_H_
+
+
+#include "co_ordinate.h"
+/**
+ * Draw 3D cube with initial on top surface.
+ * @param a_x -[IN] X axis
+ * @param a_y -[IN] Y axis
+ * @param a_z -[IN] Z axis
+ */
+void draw3D(point3D* a_x, point3D* a_y, point3D* a_z);
+
+/**
+ * World to viewer coordinate system
+ * @param world_coord -[IN] World coordinate
+ * @param viewer_coord -[OUT]  Viewer coordinate
+ */
+void world_to_viewer_coord(point3D* world_coord, point3D* viewer_coord);
+
+/**
+ * 3D Viewer to 2D coordinate system
+ * @param viewer_coord -[IN] 3D Viewer coordinate
+ * @param a_2d -[OUT]  2D coordinate
+ */
+void viewer_to_2d_coord(point3D* viewer_coord, point* a_2d);
+
+void fillShadow(point3D* cube7, point3D* cube3, point3D* inter2,point3D* inter1, point3D* inter3, point3D* inter4);
+void draw_trees(point3D trunk_start_3d, int cube_num);
+
+void drawShrinkingSquares_Cube(point sqr_0_2Dnative, point sqr_1_2Dnative, point sqr_2_2Dnative, point sqr_3_2Dnative,uint32_t colour);
+
+void drawSquare_Cube(point p0, point p1, point p2, point p3, uint32_t color);
+
+void shrinkingSquaresScreenSaver_Cube(point3D sqr_0, point3D sqr_1, point3D sqr_2, point3D sqr_3);
+
+void draw3D(point3D* a_x, point3D* a_y, point3D* a_z);
+
+#endif /* INC_3D_UTILITIES_H_ */

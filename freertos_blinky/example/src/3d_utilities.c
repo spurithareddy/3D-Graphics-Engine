@@ -1,0 +1,1067 @@
+/*
+ *  3d_utilities.c
+ *
+ *  Created on: May 8, 2019
+ *  Author: Kailash Chakravarty
+ */
+
+#define display_scaling (2000000)
+#define display_shifting (30)
+
+#include <stddef.h>
+#include <stdio.h>
+#include <math.h>
+#include "co_ordinate.h"
+#include "lcd_utilities.h"
+#include "3d_utilities.h"
+
+
+point3D camera_position = { 300, 300, 300 };
+point3D light_src = { 40, 40, 200 };
+point light_src_2D = { 0, 0 };
+point light_src_2Dnative = { 0, 0 };
+float reflectivity[3] = {0.8,0,0};
+
+//point3D g_camera_position = {300,300,300};  d=250 s=120
+
+#define SIN_THETA ((sqrt(2.0))/(2.0))
+#define COS_THETA ((sqrt(2.0))/(2.0))
+#define SIN_PHI ((sqrt(6.0))/(3.0))
+#define COS_PHI ((sqrt(3.0))/(3.0))
+#define DISTANCE_3D ((300)*(sqrt(3.0)))
+#define D (200) //250
+
+//Variables for the Axes
+point3D origin = { 0, 0, 0 };
+point origin_2d = { 0, 0 };
+point x_2d = { 0, 0 };
+point y_2d = { 0, 0 };
+point z_2d = { 0, 0 };
+
+point native_origin = { 0, 0 };
+point native_x2d = { 0, 0 };
+point native_y2d = { 0, 0 };
+point native_z2d = { 0, 0 };
+
+//-----------------------CUBE---------------------------------------------------
+
+/* Coordinates of the cube */
+point3D cube[] = { { 0.0, 80.0, 0.0 }, { 0.0, 80.0, 80.0 },
+		{ 80.0, 80.0, 80.0 }, { 80.0, 80.0, 0.0 }, { 0.0, 0.0, 0.0 }, { 0.0,
+				0.0, 80.0 }, { 80.0, 0.0, 80.0 }, { 80.0, 0.0, 0.0 } };
+
+point3D rotated_cube1[] = { { 0.0, 80.0, 0.0 }, { 0.0, 80.0, 80.0 }, { 80.0,
+		80.0, 80.0 }, { 80.0, 80.0, 0.0 }, { 0.0, 0.0, 0.0 },
+		{ 0.0, 0.0, 80.0 }, { 80.0, 0.0, 80.0 }, { 80.0, 0.0, 0.0 } };
+
+point3D cube1[] = { { 0.0, 80.0, 0.0 }, { 0.0, 80.0, 80.0 },
+		{ 80.0, 80.0, 80.0 }, { 80.0, 80.0, 0.0 }, { 0.0, 0.0, 0.0 }, { 0.0,
+				0.0, 80.0 }, { 80.0, 0.0, 80.0 }, { 80.0, 0.0, 0.0 } };
+point3D cube2[] = { { 0.0, 80.0, 0.0 }, { 0.0, 80.0, 80.0 },
+		{ 80.0, 80.0, 80.0 }, { 80.0, 80.0, 0.0 }, { 0.0, 0.0, 0.0 }, { 0.0,
+				0.0, 80.0 }, { 80.0, 0.0, 80.0 }, { 80.0, 0.0, 0.0 } };
+point3D cube3[] = { { 0.0, 80.0, 0.0 }, { 0.0, 80.0, 80.0 },
+		{ 80.0, 80.0, 80.0 }, { 80.0, 80.0, 0.0 }, { 0.0, 0.0, 0.0 }, { 0.0,
+				0.0, 80.0 }, { 80.0, 0.0, 80.0 }, { 80.0, 0.0, 0.0 } };
+
+//point3D cube[] = { { 0, 80, 10 }, { 0, 80, 90 }, { 80, 80, 90 }, { 80, 80, 10 }, {
+//		0, 0, 10 }, { 0, 0, 90 }, { 80, 0, 90 }, { 80, 0, 10 } };
+
+/* struct point to save 2D points of the cube */
+point P_2D[] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, {
+		0, 0 }, { 0, 0 } };
+
+/* struct point to save native 2D points of the cube */
+point P_2Dnative[] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 },
+		{ 0, 0 }, { 0, 0 }, { 0, 0 } };
+
+//----------------------/CUBE---------------------------------------------------
+
+//----------------------PLANES--------------------------------------------------
+
+point3D XY1 = { 0.0, 0.0, 80.0 }, XY2 = { 0.0, 80.0, 80.0 }, XY3 = { 80.0, 0.0,
+		80.0 }, XY4 = { 80.0, 80.0, 80.0 };
+point3D YZ1 = { 80.0, 0.0, 0.0 }, YZ2 = { 80.0, 0.0, 80.0 }, YZ3 = { 80.0, 80.0,
+		0.0 }, YZ4 = { 80.0, 80.0, 80.0 };
+point3D ZX1 = { 80.0, 80.0, 0.0 }, ZX2 = { 80.0, 80.0, 80.0 }, ZX3 = { 0.0,
+		80.0, 0.0 }, ZX4 = { 0.0, 80.0, 80.0 };
+
+//----------------------PLANES--------------------------------------------------
+
+//-----------------------INITIAL------------------------------------------------
+
+
+point3D initial[] = { { 5.0, 75.0, 80.0 }, { 5.0, 5.0, 80.0 }, { 75.0, 75.0,
+		80.0 }, { 75.0, 5.0, 80.0 } };
+
+point3D initial_restore[] =  { { 5.0, 75.0, 80.0 }, { 5.0, 5.0, 80.0 }, { 75.0, 75.0,
+		80.0 }, { 75.0, 5.0, 80.0 } };
+
+/* struct point to save 2D points of the initial */
+point I_2D[] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, {
+		0, 0 }, { 0, 0 } };
+
+/* struct point to save native 2D points of the initial */
+point I_2Dnative[] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 },
+		{ 0, 0 }, { 0, 0 }, { 0, 0 } };
+
+//----------------------/INITIAL------------------------------------------------
+
+//----------------------OTHER-VARIABLES-----------------------------------------
+
+point3D intersection1 = { 0, 0, 0 };
+point intersection1_2D = { 0, 0 };
+point intersection1_2Dnative = { 0, 0 };
+
+point3D intersection2 = { 0, 0, 0 };
+point intersection2_2D = { 0, 0 };
+point intersection2_2Dnative = { 0, 0 };
+
+point3D intersection3 = { 0, 0, 0 };
+point intersection3_2D = { 0, 0 };
+point intersection3_2Dnative = { 0, 0 };
+
+point3D intersection4 = { 0, 0, 0 };
+point intersection4_2D = { 0, 0 };
+point intersection4_2Dnative = { 0, 0 };
+
+//-----------------------OTHER-VARIABLES----------------------------------------
+
+void world_to_viewer_coord(point3D* world_coord, point3D* viewer_coord) {
+	viewer_coord->x = ((-SIN_THETA) * world_coord->x)
+			+ ((world_coord->y) * COS_THETA);
+	viewer_coord->y = (-(world_coord->x) * COS_THETA * COS_PHI)
+			+ (-(world_coord->y) * COS_PHI * SIN_THETA)
+			+ ((world_coord->z) * SIN_PHI);
+	viewer_coord->z = (-(world_coord->x) * SIN_PHI * COS_THETA)
+			+ (-(world_coord->y) * SIN_PHI * COS_THETA)
+			+ (-(world_coord->z) * COS_PHI) + DISTANCE_3D;
+
+}
+
+/**
+ * 3D Viewer to 2D coordinate system
+ * @param viewer_coord -[IN] 3D Viewer coordinate
+ * @param a_2d -[OUT]  2D coordinate
+ */
+void viewer_to_2d_coord(point3D* viewer_coord, point* a_2d) {
+
+	a_2d->x = (viewer_coord->x * D) / (viewer_coord->z);
+	a_2d->y = (viewer_coord->y * D) / (viewer_coord->z);
+
+}
+
+
+void conv_3D_to_2D(point3D* a_3d_point, point* a_2d_point) {
+
+	point3D viewer_cord = { 0 };
+	world_to_viewer_coord(a_3d_point, &viewer_cord);
+	viewer_to_2d_coord(&viewer_cord, a_2d_point);
+
+}
+
+/**
+ * Convert 3D coordinates to 2D coordinates
+ */
+void all3Dto2D() {
+
+	/* Convert 3D points to 2D */
+	for (int i = 0; i <= 7; i++) {
+		conv_3D_to_2D(&cube[i], &P_2D[i]);
+		conv_3D_to_2D(&initial[i], &I_2D[i]);
+//		conv_3D_to_2D(&arrow[i], &A_2D[i]);
+//		conv_3D_to_2D(&arrow2[i], &A2_2D[i]);
+	}
+	conv_3D_to_2D(&light_src, &light_src_2D);
+}
+
+/**
+ * Convert Virtual coordinates to native
+ */
+void allVirtualtoNative() {
+
+	native_origin = virtualToNativeCoord(&origin_2d);
+	light_src_2Dnative = virtualToNativeCoord(&light_src_2D);
+
+	for (int i = 0; i <= 7; i++) {
+		P_2Dnative[i] = virtualToNativeCoord(&P_2D[i]); /* Cube's 2D coordinates virtual to native */
+		I_2Dnative[i] = virtualToNativeCoord(&I_2D[i]); /* Initials' 2D coordinates virtual to native */
+//		A_2Dnative[i] = virtualToNativeCoord(&A_2D[i]); /* Arrow's 2D coordinates virtual to native */
+//		A2_2Dnative[i] = virtualToNativeCoord(&A2_2D[i]); /* Arrow's reflection's 2D coordinates virtual to native */
+	}
+}
+
+void rotate(float theta, float alpha) {
+
+	static int flag = 0;
+//	float alpha = 1;
+	float cos_theta = cos((theta * 3.1415926535859) / 180.0);
+	float sin_theta = sin((theta * 3.1415926535859) / 180.0);
+
+	if (flag == 2) {
+		for (int i = 0; i < 8; i++) {
+
+			cube[i].x = alpha
+					* ((cube[i].x * cos_theta) - (cube[i].y * sin_theta)
+							- (200 * (cos_theta - sin_theta - 1))) + 5;
+			cube[i].y = alpha
+					* ((cube[i].x * sin_theta) + (cube[i].y * cos_theta)
+							- (200 * (sin_theta + cos_theta - 1))) + 5;
+			cube[i].z = alpha * cube[i].z;
+
+			//Rotate initial
+
+			initial[i].x = alpha
+					* ((initial[i].x * cos_theta) - (initial[i].y * sin_theta)
+							- (200 * (cos_theta - sin_theta - 1))) + 5;
+			initial[i].y = alpha
+					* ((initial[i].x * sin_theta) + (initial[i].y * cos_theta)
+							- (200 * (sin_theta + cos_theta - 1))) + 5;
+			initial[i].z = alpha * initial[i].z;
+
+		}
+
+		XY1 = cube[5], XY2 = cube[1], XY3 = cube[6], XY4 = cube[2];
+		YZ1 = cube[7], YZ2 = cube[6], YZ3 = cube[3], YZ4 = cube[2];
+		ZX1 = cube[3], ZX2 = cube[2], ZX3 = cube[0], ZX4 = cube[1];
+	} else if (flag == 1) {
+		for (int i = 0; i < 8; i++) {
+
+			cube[i].x = alpha
+					* ((cube[i].x * cos_theta) - (cube[i].y * sin_theta)
+							+ (200 * (sin_theta))) + 10;
+			cube[i].y = alpha
+					* ((cube[i].x * sin_theta) + (cube[i].y * cos_theta)
+							- (200 * (cos_theta - 1))) + 30;
+			cube[i].z = alpha * cube[i].z;
+
+			initial[i].x = alpha
+					* ((initial[i].x * cos_theta) - (initial[i].y * sin_theta)
+							+ (200 * (sin_theta))) + 10;
+			initial[i].y = alpha
+					* ((initial[i].x * sin_theta) + (initial[i].y * cos_theta)
+							- (200 * (cos_theta - 1))) + 30;
+			initial[i].z = alpha * initial[i].z;
+
+		}
+
+		XY1 = cube[5], XY2 = cube[1], XY3 = cube[6], XY4 = cube[2];
+		YZ1 = cube[7], YZ2 = cube[6], YZ3 = cube[3], YZ4 = cube[2];
+		ZX1 = cube[3], ZX2 = cube[2], ZX3 = cube[0], ZX4 = cube[1];
+
+	}
+
+	else if (flag == 0) {
+		for (int i = 0; i < 8; i++) {
+
+			cube[i].x = alpha
+					* ((cube[i].x * cos_theta) - (cube[i].y * sin_theta)
+							- (400 * (cos_theta - sin_theta - 1)));
+			cube[i].y = alpha
+					* ((cube[i].x * sin_theta) + (cube[i].y * cos_theta)
+							+ (400 * (sin_theta + cos_theta - 1)));
+			cube[i].z = alpha * cube[i].z;
+
+			initial[i].x = alpha
+					* ((initial[i].x * cos_theta) - (initial[i].y * sin_theta)
+							- (400 * (cos_theta - sin_theta - 1)));
+			initial[i].y = alpha
+					* ((initial[i].x * sin_theta) + (initial[i].y * cos_theta)
+							+ (400 * (sin_theta + cos_theta - 1)));
+			initial[i].z = alpha * initial[i].z;
+		}
+
+		XY1 = cube[5], XY2 = cube[1], XY3 = cube[6], XY4 = cube[2];
+		YZ1 = cube[7], YZ2 = cube[6], YZ3 = cube[3], YZ4 = cube[2];
+		ZX1 = cube[3], ZX2 = cube[2], ZX3 = cube[0], ZX4 = cube[1];
+
+	}
+
+	flag = flag + 1;
+}
+
+/**
+ * Draw cube by joining the points
+ * */
+void drawcube(float angle) {
+
+//	printf(" before drawing cube YZ1.x YZ1.y YZ1.z %f %f %f \n", YZ1.x, YZ1.y,
+//			YZ1.z);
+	uint8_t sub=1;
+	drawLineWithPoint(P_2Dnative[0], P_2Dnative[1], 0xFF33CC);
+	drawLineWithPoint(P_2Dnative[1], P_2Dnative[2], 0xFF33CC);
+	drawLineWithPoint(P_2Dnative[2], P_2Dnative[3], 0xFF33CC);
+	drawLineWithPoint(P_2Dnative[3], P_2Dnative[0], 0xFF33CC);
+
+	//	drawLineWithPoint(P_2Dnative[4], P_2Dnative[5], 0xFF33CC);
+	drawLineWithPoint(P_2Dnative[5], P_2Dnative[6], 0xFF33CC);
+	drawLineWithPoint(P_2Dnative[6], P_2Dnative[7], 0xFF33CC);
+	//	drawLineWithPoint(P_2Dnative[7], P_2Dnative[4], 0xFF33CC);
+
+	drawLineWithPoint(P_2Dnative[0], P_2Dnative[4], 0xFF33CC);
+	drawLineWithPoint(P_2Dnative[1], P_2Dnative[5], 0xFF33CC);
+
+	drawLineWithPoint(P_2Dnative[2], P_2Dnative[6], 0xFF33CC);
+	drawLineWithPoint(P_2Dnative[3], P_2Dnative[7], 0xFF33CC);
+
+	//	Shadow
+//	drawLineWithPoint(light_src_2Dnative, P_2Dnative[2], 0xFFFFFF);
+//	drawLineWithPoint(light_src_2Dnative, P_2Dnative[6], 0xFFFFFF);
+//	drawLineWithPoint(light_src_2Dnative, P_2Dnative[1], 0xFFFFFF);
+
+//	------------------------Draw cube ends-------------------------
+//	-----------------Implementation with Arrays--------------------
+	float lambda = (-1 * light_src.z) / (light_src.z - cube[2].z); //(-200.0 / 120.0);
+
+//	printf("lambda = %f\n", lambda);
+	intersection1.x = light_src.x + lambda * (light_src.x - cube[2].x);
+	intersection1.y = light_src.y + lambda * (light_src.y - cube[2].y);
+	intersection1.z = light_src.z + lambda * (light_src.z - cube[2].z);
+
+//	printf("\n Shadow intersection 1 %f , %f , %f\n", intersection1.x,
+//			intersection1.y, intersection1.z);
+
+	conv_3D_to_2D(&intersection1, &intersection1_2D);
+	intersection1_2Dnative = virtualToNativeCoord(&intersection1_2D);
+//	drawLineWithPoint(P_2Dnative[2], intersection1_2Dnative, 0xFFFFFF);
+
+	intersection2.x = light_src.x + lambda * (light_src.x - cube[6].x);
+	intersection2.y = light_src.y + lambda * (light_src.y - cube[6].y);
+	intersection2.z = light_src.z + lambda * (light_src.z - cube[6].z);
+
+//	printf("\n Shadow intersection 2 %f , %f , %f\n", intersection2.x,
+//			intersection2.y, intersection2.z);
+
+	conv_3D_to_2D(&intersection2, &intersection2_2D);
+	intersection2_2Dnative = virtualToNativeCoord(&intersection2_2D);
+//	drawLineWithPoint(P_2Dnative[6], intersection2_2Dnative, 0xFFFFFF);
+
+	intersection3.x = light_src.x + lambda * (light_src.x - cube[1].x);
+	intersection3.y = light_src.y + lambda * (light_src.y - cube[1].y);
+	intersection3.z = light_src.z + lambda * (light_src.z - cube[1].z);
+
+//	printf("\n Shadow intersection 3 %f , %f , %f\n", intersection3.x,
+//			intersection3.y, intersection3.z);
+
+	conv_3D_to_2D(&intersection3, &intersection3_2D);
+	intersection3_2Dnative = virtualToNativeCoord(&intersection3_2D);
+//	drawLineWithPoint(P_2Dnative[1], intersection3_2Dnative, 0xFFFFFF);
+
+	intersection4.x = light_src.x + lambda * (light_src.x - cube[5].x);
+	intersection4.y = light_src.y + lambda * (light_src.y - cube[5].y);
+	intersection4.z = light_src.z + lambda * (light_src.z - cube[5].z);
+
+//	printf("\n Shadow intersection 4 %f , %f , %f\n", intersection4.x,
+//			intersection4.y, intersection4.z);
+
+	conv_3D_to_2D(&intersection4, &intersection4_2D);
+	intersection4_2Dnative = virtualToNativeCoord(&intersection4_2D);
+
+
+// Fill color for shadow
+	point3D a = cube[7], b = cube[3], c = intersection2, d = intersection1, e =
+			intersection3, f = intersection4;
+
+	fillShadow(&a, &b, &c, &d, &e, &f);
+
+//	printf(" after drawing shadow YZ1.x YZ1.y YZ1.z %f %f %f \n", YZ1.x, YZ1.y,
+//			YZ1.z);
+
+//	XY1 = cube[5], XY2 = cube[1], XY3 = cube[6], XY4 = cube[2];
+//	YZ1 = cube[7], YZ2 = cube[6], YZ3 = cube[3], YZ4 = cube[2];
+//	ZX1 = cube[3], ZX2 = cube[2], ZX3 = cube[0], ZX4 = cube[1];
+	point3D t1, t2, t3, t4;
+	point w, x, y, z;
+
+	//Filling top surface
+	for (float i = XY1.x, j = XY2.x; i <= XY3.x && j <= XY4.x; i++, j++) {
+
+		t1.x = i;
+		t1.y = (((XY3.y - XY1.y) / (XY3.x - XY1.x)) * (t1.x - XY1.x)) + XY1.y;
+		if (angle != 0.0) {
+			t1.z = XY1.z;
+		}
+
+		t2.x = j;
+		t2.y = (((XY4.y - XY2.y) / (XY4.x - XY2.x)) * (t2.x - XY2.x)) + XY2.y;
+		if (angle != 0.0) {
+			t2.z = XY2.z;
+		}
+#if 1
+			double dx = t2.x - t1.x;
+			double dy = t2.y - t1.y;
+			double dotProd = 0.0;
+			double magdotProd = 0.0;
+			double angle = 0.0;
+			double diffuse = 0.0;
+
+			int steps = 0;
+			steps = (abs((int) dx)) > (abs((int) dy)) ?
+					(abs((int) dx)) : (abs((int) dy));
+			float xInc, yInc, xStep,yStep;
+			xInc = dx/(float)steps;
+			yInc = dy/(float)steps;
+
+			point3D t1_temp = t1;
+			point3D t2_temp = t2;
+
+		for (int k = 0; k < steps; k++) {
+			t1_temp.x +=xInc;
+			t1_temp.y +=yInc;
+			conv_3D_to_2D(&t1_temp, &w);
+			w = virtualToNativeCoord(&w);
+
+			/* Compute diffuse reflection */
+			dotProd = light_src.z - t1_temp.z;
+			magdotProd = sqrt(
+					pow((light_src.x - t1_temp.x), 2)
+							+ pow((light_src.y - t1_temp.y), 2)
+							+ pow((light_src.z - t1_temp.z), 2));
+			angle = dotProd / magdotProd;
+			diffuse = reflectivity[0] * angle / pow(magdotProd, 2);
+			int color = display_scaling * diffuse + display_shifting;
+			color = LIGHTBLUE; //0x0000FF;
+			color = color-sub;
+			drawPixel(w.x, w.y, color);
+		}
+		sub+=3;
+#else
+		conv_3D_to_2D(&t1, &w);
+		x = virtualToNativeCoord(&w);
+
+		conv_3D_to_2D(&t2, &y);
+		z = virtualToNativeCoord(&y);
+
+		drawLineWithPoint(x, z, 0x0000FF);
+#endif
+}
+
+
+
+
+
+
+//	printf(" while filling YZ1.x YZ1.y YZ1.z %f %f %f \n", YZ1.x, YZ1.y, YZ1.z);
+
+	for (float i = YZ1.y, j = YZ2.y; i <= YZ3.y && j <= YZ4.y; i++, j++) {
+		float m = (YZ3.y - YZ1.y) / (YZ3.x - YZ1.x);
+
+		t1.y = i;
+		t1.z = (((YZ3.z - YZ1.z) / (YZ3.y - YZ1.y)) * (t1.y - YZ1.y)) + YZ1.z;
+		if (angle != 0.0) {
+			t1.x = (t1.y - YZ1.y + (m * YZ1.x)) / m; //YZ1.x;
+		}
+
+		t2.y = j;
+		t2.z = (((YZ4.z - YZ2.z) / (YZ4.y - YZ2.y)) * (t2.y - YZ2.y)) + YZ2.z;
+		if (angle != 0.0) {
+			t2.x = t1.x; //YZ2.x;
+		}
+
+
+
+		conv_3D_to_2D(&t1, &w);
+		x = virtualToNativeCoord(&w);
+
+		conv_3D_to_2D(&t2, &y);
+		z = virtualToNativeCoord(&y);
+
+		//drawLineWithPoint(x, z, 0x00FF00);
+		drawLineWithPoint(x, z, 0xCC33FF);
+
+
+	}
+
+	//	ZX1 = cube[3], ZX2 = cube[2], ZX3 = cube[0], ZX4 = cube[1];
+
+	for (float i = ZX1.x, j = ZX2.x; i >= ZX3.x && j >= ZX4.x; i--, j--) {
+
+		float m = (ZX3.y - ZX1.y) / (ZX3.x - ZX1.x);
+
+		t1.x = i;
+		t1.z = (((ZX3.z - ZX1.z) / (ZX3.x - ZX1.x)) * (t1.x - ZX1.x)) + ZX1.z;
+		if (angle != 0.0) {
+			t1.y = (((ZX3.y - ZX1.y) / (ZX3.x - ZX1.x)) * (t1.x - ZX1.x))
+					+ ZX1.y; //(t1.y-ZX1.y + (m*ZX1.x))/m;//YZ1.x;
+		}
+
+		t2.x = j;
+		t2.z = (((ZX4.z - ZX2.z) / (ZX4.y - ZX2.y)) * (t2.y - ZX2.y)) + ZX2.z;
+		if (angle != 0.0) {
+			t2.y = t1.y; //YZ2.x;
+		}
+
+		conv_3D_to_2D(&t1, &w);
+		x = virtualToNativeCoord(&w);
+
+		conv_3D_to_2D(&t2, &y);
+		z = virtualToNativeCoord(&y);
+
+		//drawLineWithPoint(x, z, 0xFF0000);
+		drawLineWithPoint(x, z, 0x0045FF);
+
+	}
+
+}
+
+//--------------fillcolor
+void fillShadow(point3D* cube7, point3D* cube3, point3D* inter2,
+		point3D* inter1, point3D* inter3, point3D* inter4) {
+
+	static int ctr = 0;
+
+	point3D temp1, temp2, temp3, temp4;
+	point a, b, c, d;
+
+	for (float i = inter4->x, j = inter3->x; i <= inter2->x && j <= inter1->x;
+			i++, j++) {
+
+		temp1.x = i;
+		temp1.y = (((inter2->y - inter4->y) / (inter2->x - inter4->x))
+				* (temp1.x - inter4->x)) + inter4->y;
+
+		temp2.x = j;
+		temp2.y = (((inter1->y - inter3->y) / (inter1->x - inter3->x))
+				* (temp2.x - inter3->x)) + inter3->y;
+
+		conv_3D_to_2D(&temp1, &a);
+		b = virtualToNativeCoord(&a);
+
+		conv_3D_to_2D(&temp2, &c);
+		d = virtualToNativeCoord(&c);
+
+		drawLineWithPoint(b, d, 0x000000);
+
+	}
+
+
+	for (float i = inter4->x, j = inter2->x; i <= inter3->x && j <= inter1->x;
+			i++, j++) {
+
+		temp1.x = i;
+		temp1.y = (((inter3->y - inter4->y) / (inter3->x - inter4->x))
+				* (temp1.x - inter4->x)) + inter4->y;
+
+		temp2.x = j;
+		temp2.y = (((inter1->y - inter2->y) / (inter1->x - inter2->x))
+				* (temp2.x - inter2->x)) + inter2->y;
+
+		conv_3D_to_2D(&temp1, &a);
+		b = virtualToNativeCoord(&a);
+
+		conv_3D_to_2D(&temp2, &c);
+		d = virtualToNativeCoord(&c);
+
+		drawLineWithPoint(b, d, 0x000000);
+
+	}
+
+	/*
+	for (float i = inter1->y, j = inter3->y; i <= inter2->y && j <= inter4->y;
+				i++, j++) {
+		if (ctr == 1 )
+		{
+		//	break;
+		}
+		float m1 = (inter2->y - inter1->y)/(inter2->x - inter1->x);
+		float m2 = (inter4->y - inter3->y)/(inter4->x - inter3->x);
+
+			temp1.y = i;
+			temp1.x = (temp1.y - inter1->y + ( m1 * inter1->x))/m1;
+
+			temp2.y = j;
+			temp2.y = (temp2.y - inter3->y + ( m2 * inter3->x))/m2;
+
+			conv_3D_to_2D(&temp1, &a);
+			b = virtualToNativeCoord(&a);
+
+			conv_3D_to_2D(&temp2, &c);
+			d = virtualToNativeCoord(&c);
+
+			drawLineWithPoint(b, d, 0x662300);
+
+		}
+	ctr = ctr + 1;
+*/
+
+}
+
+
+
+void fillCube() {
+
+//	point3D* cube7, point3D* cube3, point3D* inter2,
+//			point3D* inter1, point3D* inter3, point3D* inter4) {
+
+	point3D t1, t2, t3, t4;
+	point w, x, y, z;
+
+
+
+	for (float i = YZ1.y, j = YZ2.y; i <= YZ3.y && j <= YZ4.y; i++, j++) {
+
+		t1.y = i;
+		t1.z = (((YZ3.z - YZ1.z) / (YZ3.y - YZ1.y)) * (t1.y - YZ1.y)) + YZ1.z;
+
+		t2.y = j;
+		t2.z = (((YZ4.z - YZ2.z) / (YZ4.y - YZ2.y)) * (t2.y - YZ2.y)) + YZ2.z;
+
+		conv_3D_to_2D(&t1, &w);
+		x = virtualToNativeCoord(&w);
+
+		conv_3D_to_2D(&t2, &y);
+		z = virtualToNativeCoord(&y);
+
+		drawLineWithPoint(x, z, 0x0000FF);
+
+	}
+
+}
+
+/*
+
+
+/**
+ * Draw initial 'T' on top surface
+ */
+void drawInitial() {
+
+	//	Drawline for initial
+	drawLineWithPoint(I_2Dnative[0], I_2Dnative[1], WHITE);
+//	drawLineWithPoint(I_2Dnative[1], I_2Dnative[2], 0x0045FF);
+	drawLineWithPoint(I_2Dnative[2], I_2Dnative[3], WHITE);
+	drawLineWithPoint(I_2Dnative[3], I_2Dnative[0], WHITE);
+	//Fill initial
+}
+
+void background() {
+
+	point3D XY1 = { -50, -400, 0 }, XY2 = { -50, 300, 0 }, XY3 =
+			{ 250, -400, 0 }, XY4 = { 150, 300, 0 };
+
+	//-------------------XY--------------------------------
+	point3D ar1 = XY1, ar2 = XY3;
+	point t1, t2, t3, t4;
+
+	for (float i = 0; i <= 800; i++) {
+
+		conv_3D_to_2D(&ar1, &t1);
+		t3 = virtualToNativeCoord(&t1);
+
+		conv_3D_to_2D(&ar2, &t2);
+		t4 = virtualToNativeCoord(&t2);
+
+		drawLineWithPoint(t3, t4, 0xFF901E);
+		//		arr1.x = arr1.x + 1;
+		//		arr2.x = arr2.x + 1;
+		ar1.y = ar1.y + 1;
+		ar2.y = ar2.y + 1;
+	}
+	ar1 = XY1, ar2 = XY2;
+
+	for (float i = 0; i <= 600; i++) {
+
+		conv_3D_to_2D(&ar1, &t1);
+		t3 = virtualToNativeCoord(&t1);
+
+		conv_3D_to_2D(&ar2, &t2);
+		t4 = virtualToNativeCoord(&t2);
+
+		drawLineWithPoint(t3, t4, 0xFF901E);
+		ar1.x = ar1.x + 1;
+		ar2.x = ar2.x + 1;
+//			ar1.y = ar1.y + 1;
+//			ar2.y = ar2.y + 1;
+	}
+}
+
+
+void draw3D(point3D* a_x, point3D* a_y, point3D* a_z) {
+
+	float angle = -10.0;		//0.5;
+//	angle = 0.5;
+	rotate(angle, 1.0);
+
+
+	for( int i = 0; i < 8; i++)
+	{
+		cube1[i] = cube[i];
+	}
+	conv_3D_to_2D(a_x, &x_2d);
+	conv_3D_to_2D(a_y, &y_2d);
+	conv_3D_to_2D(a_z, &z_2d);
+
+	native_origin = virtualToNativeCoord(&origin_2d);
+	native_x2d = virtualToNativeCoord(&x_2d);
+	native_y2d = virtualToNativeCoord(&y_2d);
+	native_z2d = virtualToNativeCoord(&z_2d);
+
+	all3Dto2D();
+	allVirtualtoNative();
+
+
+
+//---------------------Axes from origin------------------------
+	drawLineWithPoint(native_origin, native_x2d, 0x00FF00);
+	drawLineWithPoint(native_origin, native_y2d, 0xFF0000 );
+	drawLineWithPoint(native_origin, native_z2d, 0x0000FF );
+//-------------------------------------------------------------
+
+//	background();
+	drawcube(angle);
+	drawInitial();
+
+	for (int i = 0; i < 8; i++) {
+		cube[i] = rotated_cube1[i];
+		initial[i] = initial_restore[i];
+	}
+
+	angle = -28.0;
+	rotate(angle, 0.8);
+	for( int i = 0; i < 8; i++)
+		{
+			cube2[i] = cube[i];
+		}
+	/////////////////////////////////
+	conv_3D_to_2D(a_x, &x_2d);
+	conv_3D_to_2D(a_y, &y_2d);
+	conv_3D_to_2D(a_z, &z_2d);
+
+	native_origin = virtualToNativeCoord(&origin_2d);
+	native_x2d = virtualToNativeCoord(&x_2d);
+	native_y2d = virtualToNativeCoord(&y_2d);
+	native_z2d = virtualToNativeCoord(&z_2d);
+
+	all3Dto2D();
+	allVirtualtoNative();
+
+	drawcube(angle);
+	//drawInitial();
+
+	for (int i = 0; i < 8; i++) {
+		cube[i] = rotated_cube1[i];
+		initial[i] = initial_restore[i];
+	}
+
+	point3D trunk_start_3D;
+
+
+
+	angle = 30.0;
+	rotate(angle, 0.6);
+
+	for( int i = 0; i < 8; i++)
+		{
+			cube3[i] = cube[i];
+		}
+	/////////////////////////////////
+	conv_3D_to_2D(a_x, &x_2d);
+	conv_3D_to_2D(a_y, &y_2d);
+	conv_3D_to_2D(a_z, &z_2d);
+
+	native_origin = virtualToNativeCoord(&origin_2d);
+	native_x2d = virtualToNativeCoord(&x_2d);
+	native_y2d = virtualToNativeCoord(&y_2d);
+	native_z2d = virtualToNativeCoord(&z_2d);
+
+	all3Dto2D();
+	allVirtualtoNative();
+
+	drawcube(angle);
+	//drawInitial();
+
+
+	// Draw trees and squares after this point
+
+
+	trunk_start_3D.x = (cube1[0].x + cube1[3].x)/2.0;
+	trunk_start_3D.y = cube1[0].y - 5.0; // kailash
+	trunk_start_3D.z = cube1[0].z + 10.0; // kailash
+	draw_trees(trunk_start_3D, 1);
+
+	trunk_start_3D.x = (cube2[0].x + cube2[3].x)/2.0;
+	trunk_start_3D.y = cube2[0].y - 10.0; // kailash
+	trunk_start_3D.z = cube2[0].z + 10.0; // kailash
+	draw_trees(trunk_start_3D, 2);
+
+	trunk_start_3D.x = (cube3[0].x + cube3[3].x)/2.0;
+	trunk_start_3D.y = cube3[0].y;
+	trunk_start_3D.z = cube3[0].z;
+	draw_trees(trunk_start_3D, 3);
+
+	shrinkingSquaresScreenSaver_Cube(cube1[7],cube1[6],cube1[2],cube1[3]);
+	shrinkingSquaresScreenSaver_Cube(cube2[7],cube2[6],cube2[2],cube2[3]);
+	shrinkingSquaresScreenSaver_Cube(cube3[7],cube3[6],cube3[2],cube3[3]);
+
+	////////////////////////////////
+
+
+
+}
+point3D arr[81] = {0};
+
+uint32_t get_leaf_colour(int k)
+{
+	uint32_t color;
+	switch (k) {
+	case 0:
+		color = GREEN4;
+		break;
+	case 1:
+		color = GREEN3;
+		break;
+	case 2:
+		color = GREEN2;
+		break;
+	case 3:
+		color = GREEN1;
+		break;
+	case 4:
+		color = GREEN4;
+		break;
+	case 5:
+		color = GREEN3;
+		break;
+	case 6:
+		color = GREEN2;
+		break;
+	case 7:
+		color = GREEN1;
+		break;
+	case 8:
+		color = GREEN4;
+		break;
+	case 9:
+		color = GREEN3;
+		break;
+	}
+	return color;
+
+}
+void draw_trees(point3D trunk_start_3d, int cube_num)
+{
+	float x0, x1, y0, y1;
+	float a0 = 64, b0 = 80; //source coordinate
+	float len;
+	float xdelta, zdelta;
+	float lambda = 1.8;
+	float alpha = 0.5236;
+	int alpha_deg = 0;
+	srand(time(NULL));
+	//point3D trunk_start_3d = {0};
+	point3D trunk_end_3d = {0};
+	point p1 = {0};
+	point p2 = {0};
+	point p3 = {0};
+	point p4 = {0};
+
+//	trunk_start_3d.x = 40.0;
+//	trunk_start_3d.z= 0.0;
+//	trunk_start_3d.y=80.0;
+
+	if (1 == cube_num) {
+		len = 20;
+	} else if (2 == cube_num) {
+		len = 15;
+	} else {
+		len = 10;
+	}
+
+
+	for (int k = 0; k < 1; k++) {
+		uint32_t color = get_leaf_colour(k);
+
+		trunk_end_3d.x = trunk_start_3d.x;
+		trunk_end_3d.z= trunk_start_3d.z + len;
+		trunk_end_3d.y=trunk_start_3d.y;
+
+		arr[0].x = trunk_start_3d.x;
+		arr[0].y = trunk_start_3d.y;
+		arr[0].z = trunk_start_3d.z;
+
+		arr[1].x = trunk_end_3d.x;
+		arr[1].y = trunk_end_3d.y;
+		arr[1].z = trunk_end_3d.z;
+
+		conv_3D_to_2D(&arr[0].x, &p1);
+		p1 = virtualToNativeCoord(&p1);
+
+		conv_3D_to_2D(&arr[1].x, &p2);
+		p2 = virtualToNativeCoord(&p2);
+
+		drawLine(p1.x, p1.y, p2.x, p2.y, BROWN);
+		drawLine(p1.x+1, p1.y, p2.x+1, p2.y, BROWN);
+		drawLine(p1.x-1, p1.y, p2.x-1, p2.y, BROWN);
+
+		for (int i = 1; i <= 27; i++) {
+
+			alpha_deg = generate_random_in_range(15, 60);
+			alpha = (alpha_deg * 3.1417) / 180;
+
+			arr[3 * i].x =arr[(int) floor((i + 1.0) / 3)].x
+						 + lambda
+						 *(arr[i].x
+						 - arr[(int) floor((i + 1.0) / 3)].x);
+			arr[3 * i].z = arr[(int) floor((i + 1.0) / 3)].z
+						   + lambda
+						   *(arr[i].z
+						   - arr[(int) floor((i + 1.0) / 3)].z);
+
+			xdelta = -arr[i].x;
+			zdelta = -arr[i].z;
+
+			float counter_cw[3][3] = { { cos(alpha), -sin(alpha), (cos(alpha)
+					* xdelta - sin(alpha) * zdelta) - xdelta }, { sin(
+					alpha), cos(alpha), (sin(alpha) * xdelta
+					+ cos(alpha) * zdelta) - zdelta }, { 0, 0, 1 } };
+
+			arr[3 * i - 1].x = (counter_cw[0][0] * arr[3 * i].x
+					+ counter_cw[0][1] * arr[3 * i].z + counter_cw[0][2]);
+			arr[3 * i - 1].z = counter_cw[1][0] * arr[3 * i].x
+					+ counter_cw[1][1] * arr[3 * i].z + counter_cw[1][2];
+
+			alpha = -alpha;
+			float cw[3][3] = { { cos(alpha), -sin(alpha), (cos(alpha)
+					* xdelta - sin(alpha) * zdelta) - xdelta }, { sin(
+					alpha), cos(alpha), (sin(alpha) * xdelta
+					+ cos(alpha) * zdelta) - zdelta }, { 0, 0, 1 } };
+			arr[3 * i + 1].x = (cw[0][0] * arr[3 * i].x
+					+ cw[0][1] * arr[3 * i].z + cw[0][2]);
+			arr[3 * i + 1].z = cw[1][0] * arr[3 * i].x
+					+ cw[1][1] * arr[3 * i].z + cw[1][2];
+			alpha = -alpha;
+
+
+			arr[i].y = trunk_start_3d.y;
+//			printf("p1:%f %f %f\n",arr[i].x,arr[i].y,arr[i].z);
+			conv_3D_to_2D(&arr[i], &p1);
+			p1 = virtualToNativeCoord(&p1);
+
+			arr[3*i].y = trunk_start_3d.y;
+//			printf("p1:%f %f %f\n",arr[3*i].x,arr[3*i].y,arr[3*i].z);
+			conv_3D_to_2D(&arr[3*i], &p2);
+			p2 = virtualToNativeCoord(&p2);
+
+			arr[3*i+1].y = trunk_start_3d.y;
+//			printf("p1:%f %f %f\n",arr[3*i+1].x,arr[3*i+1].y,arr[3*i+1].z);
+			conv_3D_to_2D(&arr[3*i+1], &p3);
+			p3 = virtualToNativeCoord(&p3);
+
+			arr[3*i-1].y = trunk_start_3d.y;
+//			printf("p1:%f %f %f\n",arr[3*i-1].x,arr[3*i-1].y,arr[3*i-1].z);
+			conv_3D_to_2D(&arr[3*i-1], &p4);
+			p4 = virtualToNativeCoord(&p4);
+			if ((3 * i - 1) <= 15) {
+				drawLine(p1.x, p1.y, p2.x, p2.y, BROWN);
+				drawLine(p1.x, p1.y, p3.x, p3.y, BROWN);
+				drawLine(p1.x, p1.y, p4.x, p4.y, BROWN);
+			} else {
+				drawLine(p1.x, p1.y, p2.x, p2.y, color);
+				drawLine(p1.x, p1.y, p3.x, p3.y, color);
+				drawLine(p1.x, p1.y, p4.x, p4.y, color);			}
+		}
+		x0 = generate_random_in_range(-64, 64);
+		y0 = generate_random_in_range(-80, 20);
+		len = rand() % 20 + 20;
+	}
+}
+
+void shrinkingSquaresScreenSaver_Cube(point3D sqr_0, point3D sqr_1, point3D sqr_2, point3D sqr_3)
+{
+//	point3D sqr_0 = {80,80,80};
+//	point3D sqr_1 = {80,0,80};
+//	point3D sqr_2 = {80,0,0};
+//	point3D sqr_3 = {80,80,0};
+
+	point sqr_0_2D = {0,0};
+	point sqr_1_2D = {0,0};
+	point sqr_2_2D = {0,0};
+	point sqr_3_2D = {0,0};
+
+	point sqr_0_2Dnative = {0,0};
+	point sqr_1_2Dnative = {0,0};
+	point sqr_2_2Dnative = {0,0};
+	point sqr_3_2Dnative = {0,0};
+
+	conv_3D_to_2D(&sqr_0, &sqr_0_2D);
+	conv_3D_to_2D(&sqr_1, &sqr_1_2D);
+	conv_3D_to_2D(&sqr_2, &sqr_2_2D);
+	conv_3D_to_2D(&sqr_3, &sqr_3_2D);
+
+	sqr_0_2Dnative = virtualToNativeCoord(&sqr_0_2D);
+	sqr_1_2Dnative = virtualToNativeCoord(&sqr_1_2D);
+	sqr_2_2Dnative = virtualToNativeCoord(&sqr_2_2D);
+	sqr_3_2Dnative = virtualToNativeCoord(&sqr_3_2D);
+
+//	printf ("Calling drawShrinkingSquares");
+//	printf("[%d %d]->[%d:%d]\n", sqr_0_2D.x, sqr_0_2D.y,
+//			sqr_1_2D.x, sqr_1_2D.y);
+	drawShrinkingSquares_Cube(sqr_0_2Dnative, sqr_1_2Dnative, sqr_2_2Dnative, sqr_3_2Dnative,GREEN);
+}
+
+void drawShrinkingSquares_Cube(point sqr_0_2Dnative, point sqr_1_2Dnative, point sqr_2_2Dnative, point sqr_3_2Dnative,
+		uint32_t colour)
+{
+//	printf("[%d %d]->[%d:%d]\n", sqr_0_2Dnative.x, sqr_1_2Dnative.y,
+//			sqr_2_2Dnative.x, sqr_3_2Dnative.y);
+	point p0_curr, p1_curr, p2_curr, p3_curr;
+	point p0_prev, p1_prev, p2_prev, p3_prev;
+//	printf ("\n I am in drawShrinkingSquares function");
+
+	p0_prev = sqr_0_2Dnative;
+	p1_prev = sqr_1_2Dnative;
+	p2_prev = sqr_2_2Dnative;
+	p3_prev = sqr_3_2Dnative;
+//	printf("[%d %d]->[%d:%d]\n", p0_prev.x, p0_prev.y,
+//			p1_prev.x, p1_prev.y);
+	for (int i = 0; i < 7; i++)
+	{
+		if (i == 0)
+		{ /* Use points as such for first iteration */
+			p0_curr = p0_prev;
+			p1_curr = p1_prev;
+			p2_curr = p2_prev;
+			p3_curr = p3_prev;
+		}
+		else
+		{
+//			printf("I am in else");
+			float lambda = 0.2;
+			p0_curr.x = (p1_prev.x) - lambda * ((p1_prev.x) - (p0_prev.x));
+			p0_curr.y = (p1_prev.y) - lambda * ((p1_prev.y) - (p0_prev.y));
+			p1_curr.x = (p2_prev.x) - lambda * ((p2_prev.x) - (p1_prev.x));
+			p1_curr.y = (p2_prev.y) - lambda * ((p2_prev.y) - (p1_prev.y));
+			p2_curr.x = (p3_prev.x) - lambda * ((p3_prev.x) - (p2_prev.x));
+			p2_curr.y = (p3_prev.y) - lambda * ((p3_prev.y) - (p2_prev.y));
+			p3_curr.x = (p0_prev.x) - lambda * ((p0_prev.x) - (p3_prev.x));
+			p3_curr.y = (p0_prev.y) - lambda * ((p0_prev.y) - (p3_prev.y));
+
+		}
+//			for (int j = 0; j < 20; j++)
+//			{
+//				colour = hex_colour[(j % 8)];
+//			}
+//		printf ("\n I am in for loop");
+		drawSquare_Cube(p0_curr, p1_curr, p2_curr, p3_curr, colour);
+		lcddelay(10);	// Delay after every side is generated.
+		p0_prev = p0_curr;
+		p1_prev = p1_curr;
+		p2_prev = p2_curr;
+		p3_prev = p3_curr;
+	}
+	lcddelay(10);
+}
+
+void drawSquare_Cube(point p0, point p1, point p2, point p3, uint32_t color) {
+//	printf("\n I am in drawSquare");
+//	printf("[%d %d]->[%d:%d]\n", p0.x, p0.y,
+//			p1.x, p1.y);
+	drawLineWithPoint(p0,p1, 0x800000);
+	lcddelay(10);
+	drawLineWithPoint(p1, p2, 0x800000);
+	lcddelay(10);
+	drawLineWithPoint(p2, p3, 0x800000);
+	lcddelay(10);
+	drawLineWithPoint(p3, p0, 0x800000);
+	lcddelay(10);
+}
